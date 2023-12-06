@@ -32,17 +32,102 @@ const humidtyToLocation = parseSection(
   "humidity-to-location map:"
 );
 
-console.log(seeds);
-console.log(seedToSoil);
+const soils = findDestinations(seeds, seedToSoil);
+const fertilizers = findDestinations(soils, soilToFertilizer);
+const waters = findDestinations(fertilizers, fertilizerToWater);
+const lights = findDestinations(waters, waterToLight);
+const tempures = findDestinations(lights, lightToTemperature);
+const humidity = findDestinations(tempures, temperatureToHumidity);
+const locations = findDestinations(humidity, humidtyToLocation);
 
-function getDesinationRanges(src, section) {
-  const sourceRage = src;
-  const destinationRanges = [];
-  for (let j = 0; j < section.length; j++) {
-    if (sourceRage.start >= section.start && sourceRage.start <= section.end) {
-      destinationRanges;
+console.log(locations.sort((a, b) => a.start - b.start));
+function findDestinations(sources, sections) {
+  const destiantions = [];
+  sources.forEach((source) => {
+    destiantions.push(...findDestination(source, sections));
+  });
+
+  return destiantions;
+}
+
+function findDestination(input, sections) {
+  let srcs = [input];
+  const destinations = [];
+
+  for (let section of sections) {
+    const newSrcs = [];
+    for (let src of srcs) {
+      const { intersection, difference } = getSectionsIntersection(
+        src,
+        section.src
+      );
+
+      if (intersection !== null) {
+        const startOffset = intersection.start - section.src.start;
+        const length = intersection.end - intersection.start;
+        destinations.push({
+          start: section.dst.start + startOffset,
+          end: section.dst.start + startOffset + length,
+        });
+      }
+
+      newSrcs.push(...difference);
     }
+
+    srcs = [...newSrcs];
   }
+
+  // Not mapped
+  destinations.push(...srcs);
+
+  return destinations;
+}
+
+function getSectionsIntersection(sectionA, sectionB) {
+  const difference = [];
+  let intersection = null;
+
+  // A outside of B
+  if (sectionA.end < sectionB.start || sectionA.start > sectionB.end) {
+    difference.push(sectionA);
+  }
+
+  // A entirely contained in B
+  if (sectionA.start >= sectionB.start && sectionA.end <= sectionB.end) {
+    intersection = sectionA;
+  }
+
+  // End of A contained in B
+  if (
+    sectionA.start < sectionB.start &&
+    sectionA.end >= sectionB.start &&
+    sectionA.end <= sectionB.end
+  ) {
+    intersection = { start: sectionB.start, end: sectionA.end };
+    difference.push({ start: sectionA.start, end: sectionB.start - 1 });
+  }
+
+  // Begining of A contained in B
+  if (
+    sectionA.start >= sectionB.start &&
+    sectionA.start <= sectionB.end &&
+    sectionA.end > sectionB.end
+  ) {
+    intersection = { start: sectionA.start, end: sectionB.end };
+    difference.push({ start: sectionB.end + 1, end: sectionA.end });
+  }
+
+  // B full in A
+  if (sectionA.start < sectionB.start && sectionA.end > sectionB.end) {
+    intersection = { ...sectionB };
+    difference.push({ start: sectionA.start, end: sectionB.start - 1 });
+    difference.push({ start: sectionB.end + 1, end: sectionA.end });
+  }
+
+  return {
+    intersection,
+    difference,
+  };
 }
 
 function parseSection(section, name) {
