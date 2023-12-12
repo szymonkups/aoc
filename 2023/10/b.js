@@ -2,7 +2,8 @@ const fs = require("node:fs");
 
 const lines = fs.readFileSync("./b.input", "utf-8").split("\n");
 
-let position = findStart(lines);
+const start = findStart(lines);
+let position = start;
 const path = [position];
 
 do {
@@ -10,7 +11,81 @@ do {
   if (position) path.push(position);
 } while (position);
 
-console.log(Math.floor(path.length / 2));
+let inside = 0;
+
+lines.forEach((line, y) => {
+  line.split("").forEach((char, x) => {
+    inside += isInside({ x, y }) ? 1 : 0;
+  });
+});
+
+console.log(inside);
+
+function isInside({ x, y }) {
+  if (isOnPath({ x, y })) {
+    return false;
+  }
+
+  const startOnLeft = start.x < x;
+
+  let cuts = 0;
+  let prev = "";
+
+  if (startOnLeft) {
+    for (let i = x + 1; i < lines[y].length; i++) {
+      if (!isOnPath({ x: i, y })) {
+        prev = "";
+        continue;
+      }
+
+      const curr = lines[y][i];
+
+      if (curr === "-") {
+        continue;
+      }
+
+      if (["|", "J", "7", "F", "L"].includes(curr)) {
+        const sameDir =
+          (prev === "F" && curr === "J") || (prev === "L" && curr === "7");
+
+        if (!sameDir) {
+          cuts++;
+        }
+      }
+
+      prev = curr;
+    }
+  } else {
+    for (let i = x - 1; i >= 0; i--) {
+      if (!isOnPath({ x: i, y })) {
+        prev = "";
+        continue;
+      }
+
+      const curr = lines[y][i];
+
+      if (curr === "-") {
+        continue;
+      }
+
+      if (["|", "J", "7", "F", "L"].includes(curr)) {
+        const sameDir =
+          (curr === "F" && prev === "J") || (curr === "L" && prev === "7");
+
+        if (!sameDir) {
+          cuts++;
+        }
+      }
+
+      prev = curr;
+    }
+  }
+
+  // if (cuts % 2 !== 0) {
+  //   console.log(x, y, cuts);
+  // }
+  return cuts % 2 !== 0;
+}
 
 function findNextStep({ x, y }) {
   const res = [];
@@ -55,7 +130,11 @@ function findNextStep({ x, y }) {
     }
   }
 
-  return res.filter((n) => !path.some((p) => p.x === n.x && p.y === n.y))[0];
+  return res.filter((n) => !isOnPath(n))[0];
+}
+
+function isOnPath({ x, y }) {
+  return path.some((p) => p.x === x && p.y === y);
 }
 
 function findStart(lines) {
